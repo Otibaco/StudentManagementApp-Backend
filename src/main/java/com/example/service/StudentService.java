@@ -1,4 +1,3 @@
-
 package com.example.service;
 
 import java.util.List;
@@ -13,8 +12,12 @@ public class StudentService {
     @Autowired
     private StudentRepository studentRepository;
 
-    // Save Student
+    // Save Student with email validation
     public Student saveStudent(Student student) {
+        // Check if email already exists
+        if (studentRepository.findByEmail(student.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already exists: " + student.getEmail());
+        }
         return studentRepository.save(student);
     }
 
@@ -28,18 +31,30 @@ public class StudentService {
         return studentRepository.findById(id);
     }
 
-    // Update Student
+    // Update Student with proper validation
     public Student updateStudent(Long id, Student updatedStudent) {
-        return studentRepository.findById(id).map(student -> {
-            student.setName(updatedStudent.getName());
-            student.setEmail(updatedStudent.getEmail());
-            student.setId(updatedStudent.getId());
-            return studentRepository.save(student);
-        }).orElseThrow(() -> new RuntimeException("Student not found"));
+        Student existingStudent = studentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Student not found with id: " + id));
+
+        // Check if new email already exists for different student
+        Optional<Student> studentWithEmail = studentRepository.findByEmail(updatedStudent.getEmail());
+        if (studentWithEmail.isPresent() && !studentWithEmail.get().getId().equals(id)) {
+            throw new RuntimeException("Email already exists: " + updatedStudent.getEmail());
+        }
+
+        // Update fields
+        existingStudent.setName(updatedStudent.getName());
+        existingStudent.setEmail(updatedStudent.getEmail());
+        existingStudent.setAge(updatedStudent.getAge());
+        
+        return studentRepository.save(existingStudent);
     }
 
-    // Delete Student
+    // Delete Student with proper validation
     public void deleteStudent(Long id) {
+        if (!studentRepository.existsById(id)) {
+            throw new RuntimeException("Student not found with id: " + id);
+        }
         studentRepository.deleteById(id);
     }
 }
